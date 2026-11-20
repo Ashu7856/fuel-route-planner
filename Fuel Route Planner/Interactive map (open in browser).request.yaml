@@ -1,0 +1,4 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/route/map/?start=Seattle, WA&finish=Dallas, TX
+method: GET
+order: 3000

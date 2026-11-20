@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Route &amp; fuel stops</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+  #map { position: absolute; inset: 0; }
+  #summary { position: absolute; z-index: 1000; top: 12px; right: 12px; max-width: 320px;
+             background: #fff; padding: 12px 14px; border-radius: 8px;
+             box-shadow: 0 2px 10px rgba(0,0,0,.25); font-size: 14px; }
+  #summary h1 { font-size: 15px; margin: 0 0 6px; }
+  #summary table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+  #summary td { padding: 2px 0; } #summary td:last-child { text-align: right; }
+  .err { color: #b00020; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="summary">Loading route…</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([39.5, -98.35], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'}).addTo(map);
+
+const money = n => '$' + Number(n).toFixed(2);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const API_URL = "{{ api_url|escapejs }}";
+const summary = document.getElementById('summary');
+
+fetch(API_URL).then(r => r.json().then(d => ({ok: r.ok, d}))).then(({ok, d}) => {
+  if (!ok) { summary.innerHTML = '<span class="err">' + esc(d.error || JSON.stringify(d)) + '</span>'; return; }
+  const layer = L.geoJSON(d.map, {
+    style: () => ({color: '#1a73e8', weight: 5}),
+    pointToLayer: (f, ll) => {
+      const k = f.properties.kind;
+      const color = k === 'start' ? '#188038' : k === 'finish' ? '#d93025' : '#f9ab00';
+      return L.circleMarker(ll, {radius: k === 'fuel_stop' ? 9 : 7, color: '#222', weight: 1,
+                                 fillColor: color, fillOpacity: 1});
+    },
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      if (p.kind === 'fuel_stop') {
+        l.bindPopup('<b>Stop ' + p.stop + ': ' + esc(p.station) + '</b><br>' + esc(p.city) + ', ' + esc(p.state) +
+          '<br>Mile ' + p.route_mile + '<br>' + money(p.price_per_gallon) + '/gal &times; ' +
+          p.gallons_purchased + ' gal = <b>' + money(p.cost) + '</b>');
+      } else if (p.kind !== 'route') {
+        l.bindPopup((p.kind === 'start' ? 'Start: ' : 'Finish: ') + esc(p.label));
+      }
+    }
+  }).addTo(map);
+  map.fitBounds(layer.getBounds().pad(0.1));
+
+  const rows = d.fuel_stops.map(s => '<tr><td>' + s.stop + '. ' + esc(s.city) + ', ' + esc(s.state) +
+    ' (mi ' + s.route_mile + ')</td><td>' + money(s.cost) + '</td></tr>').join('');
+  summary.innerHTML = '<h1>' + esc(d.start.label) + ' &rarr; ' + esc(d.finish.label) + '</h1>' +
+    d.distance_miles + ' mi &middot; ' + d.duration_hours + ' h<br>' +
+    '<b>Fuel cost: ' + money(d.total_fuel_cost) + '</b> (' + d.total_gallons_purchased + ' gal purchased)' +
+    '<table>' + (rows || '<tr><td>No fuel stop needed</td><td></td></tr>') + '</table>';
+}).catch(e => { summary.innerHTML = '<span class="err">' + esc(e) + '</span>'; });
+</script>
+</body>
+</html>

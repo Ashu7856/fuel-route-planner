@@ -1,0 +1,13 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/route/
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "start": "Los Angeles, CA",
+      "finish": "New York, NY"
+    }
+order: 1000

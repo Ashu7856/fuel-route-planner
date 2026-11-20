@@ -1,0 +1,9 @@
+$kind: http-request
+name: Plan route (GET, lat/lng)
+url: http://127.0.0.1:8000/api/route/?start=34.05,-118.24&finish=Miami, FL&mpg=10
+method: GET
+queryParams:
+  start: 34.05,-118.24
+  finish: Miami, FL
+  mpg: "10"
+order: 2000
